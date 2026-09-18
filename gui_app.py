@@ -615,6 +615,7 @@ class ICInspectorGUI:
 
             stats = {"processed": 0, "total_crops": 0}
             lock = threading.Lock()
+            inspector = ICInspector(self.config)
 
             def process_single_file(filename):
                 if not self.is_running: return
@@ -636,14 +637,25 @@ class ICInspectorGUI:
                     crop_filename = f"Crop_{base_name}_ROI{roi_idx+1}{ext}"
                     crop_save_path = os.path.join(out_folder, crop_filename)
 
-                    success = cv2_imwrite_unicode(crop_save_path, ic_crop)
+                    # Run automatic Pitch & Brightness Anomaly Inspection
+                    try:
+                        annotated_img, faulty_pins = inspector.inspect(ic_crop)
+                    except Exception:
+                        annotated_img, faulty_pins = ic_crop, []
+
+                    success = cv2_imwrite_unicode(crop_save_path, annotated_img)
                     if success:
                         with lock:
                             stats["total_crops"] += 1
                             item = (crop_filename, crop_save_path)
                             self.cropped_items.append(item)
-                            self.root.after(0, lambda fn=crop_filename, p=crop_save_path, c=ic_crop.copy(): 
-                                            self._add_thumbnail_to_gallery(fn, p, c))
+                            
+                            if faulty_pins:
+                                self.root.after(0, lambda fn=crop_filename, count=len(faulty_pins): 
+                                                self._log(f"⚠️ Auto NG Detected: {fn} ({count} faults)"))
+
+                            self.root.after(0, lambda fn=crop_filename, p=crop_save_path, c=annotated_img.copy(): 
+                                             self._add_thumbnail_to_gallery(fn, p, c))
                 
                 with lock:
                     stats["processed"] += 1
