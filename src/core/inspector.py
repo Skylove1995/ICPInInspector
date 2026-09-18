@@ -96,7 +96,43 @@ class ICInspector:
                         faulty_pins.append(faulty_pt)
                         
                         cv2.line(debug_img, (x1, check_y), (x2, check_y), (0, 0, 255), 2)
-                        cv2.putText(debug_img, "NG", (faulty_pt[0]-5, faulty_pt[1]-5), 
+                        cv2.putText(debug_img, "NG-PITCH", (faulty_pt[0]-5, faulty_pt[1]-5), 
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
+
+            # Brightness anomaly check across detected pin tips
+            if len(peaks) >= 2:
+                med_p = np.median(np.diff(peaks)) if len(peaks) > 2 else 10
+                half_w = max(3, int(med_p // 3))
+                
+                pin_brightnesses = []
+                pin_boxes = []
+
+                for i, p in enumerate(peaks):
+                    x1 = max(0, p - half_w)
+                    x2 = min(width, p + half_w)
+                    
+                    pin_crop = gray[y_start:y_end, x1:x2]
+                    if pin_crop.size > 0:
+                        b_val = float(np.mean(pin_crop))
+                        pin_brightnesses.append(b_val)
+                        pin_boxes.append((x1, y_start, x2 - x1, y_end - y_start))
+
+                if pin_brightnesses:
+                    med_b = float(np.median(pin_brightnesses))
+                    bright_thresh_ratio = self.prep_config.get("brightness_thresh_ratio", 0.35)
+                    bright_cutoff = self.prep_config.get("intensity_bright_cutoff", 180)
+
+                    for idx, b_val in enumerate(pin_brightnesses):
+                        is_anomalous_bright = (med_b > 20 and (b_val - med_b) / med_b > bright_thresh_ratio) or \
+                                              (b_val > bright_cutoff and b_val - med_b > 35)
+                        if is_anomalous_bright:
+                            bx, by, bw, bh = pin_boxes[idx]
+                            faulty_pt = (bx + bw // 2, by + bh // 2)
+                            if faulty_pt not in faulty_pins:
+                                faulty_pins.append(faulty_pt)
+                            
+                            cv2.rectangle(debug_img, (bx, by), (bx + bw, by + bh), (0, 0, 255), 2)
+                            cv2.putText(debug_img, "NG-BRIGHT", (bx, max(10, by - 3)), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 
         return debug_img, faulty_pins
