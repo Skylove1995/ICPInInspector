@@ -1,0 +1,32 @@
+{
+    "rois": [
+        [
+            430,
+            3607,
+            852,
+            2134
+        ],
+        [
+            8829,
+            819,
+            645,
+            1986
+        ]
+    ],
+    "preprocessing": {
+        "blur_kernel": 3,
+        "threshold_block_size": 15,
+        "threshold_c": 5,
+        "morph_kernel": 2,
+        "debug_mode": true,
+        "blur_size": 1,
+        "threshold": 45
+    },
+    "deviation_threshold": 2.5,
+    "pitch_threshold": 2.5,
+    "contour_filter": {
+        "min_area": 6,
+        "max_area": 625
+    },
+    "num_rois": 2
+}
